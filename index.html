@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación de Java & Java Swing</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jsPDF para generación de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Deshabilitar selección de texto para evitar copiar durante el examen */
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen flex flex-col justify-center items-center p-4 no-select" oncontextmenu="return false;">
+
+    <!-- Pantalla 1: Registro -->
+    <div id="screen-register" class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full border border-gray-200">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-blue-900">Evaluación de Java Swing</h1>
+            <p class="text-sm text-gray-600 mt-1">Fundamentos, Excepciones, Eventos y Componentes</p>
+        </div>
+        <form id="form-register" onsubmit="startExam(event)" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                <input type="text" id="user-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ej. Juan Pérez">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                <input type="email" id="user-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="correo@ejemplo.com">
+            </div>
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 text-xs text-blue-800">
+                <p class="font-semibold mb-1">Instrucciones importantes:</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li>La prueba consta de 25 preguntas seleccionadas al azar (25 puntos total).</li>
+                    <li>Al iniciar, el sistema pasará a modo de pantalla completa.</li>
+                    <li>No intente cambiar de pestaña, salir del navegador ni tomar capturas de pantalla.</li>
+                </ul>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition duration-200">
+                Iniciar Evaluación
+            </button>
+        </form>
+    </div>
+
+    <!-- Pantalla 2: Examen -->
+    <div id="screen-quiz" class="hidden bg-white p-8 rounded-xl shadow-lg max-w-3xl w-full border border-gray-200">
+        <!-- Header Examen -->
+        <div class="flex justify-between items-center border-b pb-4 mb-6">
+            <div>
+                <h2 id="quiz-student-name" class="font-bold text-gray-800 text-lg">---</h2>
+                <p id="quiz-student-email" class="text-xs text-gray-500">---</p>
+            </div>
+            <div class="text-right">
+                <span class="text-xs font-semibold text-gray-500 block">Progreso</span>
+                <span id="quiz-progress" class="text-lg font-bold text-blue-600">Pregunta 1 de 25</span>
+            </div>
+        </div>
+
+        <!-- Pregunta -->
+        <div id="quiz-container">
+            <div id="question-text" class="text-lg font-semibold text-gray-800 mb-4">---</div>
+            
+            <!-- Fragmento de Código (opcional) -->
+            <pre id="code-block" class="hidden bg-gray-900 text-green-400 p-4 rounded-lg text-sm mb-4 font-mono overflow-x-auto"></pre>
+
+            <!-- Opciones -->
+            <div id="options-container" class="space-y-3 mb-6">
+                <!-- Se generan dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Acciones Examen -->
+        <div class="flex justify-end pt-4 border-t">
+            <button id="btn-next" onclick="nextQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition duration-200">
+                Siguiente
+            </button>
+        </div>
+    </div>
+
+    <!-- Pantalla 3: Resultados -->
+    <div id="screen-results" class="hidden bg-white p-8 rounded-xl shadow-lg max-w-3xl w-full border border-gray-200">
+        <div class="text-center border-b pb-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Resultado de la Evaluación</h2>
+            <p class="text-gray-600 mt-1">Estudiante: <span id="res-student-name" class="font-semibold text-gray-800">---</span></p>
+            <div class="mt-4 inline-block bg-blue-50 border border-blue-200 rounded-xl px-6 py-3">
+                <span class="text-xs text-blue-600 uppercase font-bold tracking-wider block">Punteo Obtenido</span>
+                <span id="res-score" class="text-4xl font-extrabold text-blue-700">0 / 25</span>
+            </div>
+        </div>
+
+        <!-- Sección de Retroalimentación -->
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-3">Resumen de Respuestas Incorrectas</h3>
+            <div id="feedback-list" class="space-y-4 max-h-80 overflow-y-auto pr-2">
+                <!-- Se generan dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Acciones Finales -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t">
+            <button onclick="downloadPDF()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 transition duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Descargar Constancia (PDF)
+            </button>
+            <button onclick="finishExam()" class="w-full sm:w-auto bg-gray-700 hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-200">
+                Finalizar Prueba
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // BANCO DE 40 PREGUNTAS SOBRE JAVA Y JAVA SWING
+        const questionBank = [
+            // Excepciones
+            {
+                q: "¿Qué es una excepción en Java?",
+                options: [
+                    "Un evento anómalo o error en tiempo de ejecución que interrumpe el flujo normal del programa.",
+                    "Un error de sintaxis detectado exclusivamente por el compilador.",
+                    "Un método reservado para la liberación automática de memoria principal.",
+                    "Una variable constante que no puede ser modificada en tiempo de ejecución."
+                ],
+                correct: 0,
+                feedback: "Una excepción es un evento anómalo que ocurre durante la ejecución de un programa y rompe el flujo normal de las instrucciones."
+            },
+            {
+                q: "¿Cuál es la diferencia principal entre Error y Exception en Java?",
+                options: [
+                    "Error representa fallos graves del sistema/JVM irrecuperables; Exception representa condiciones que la aplicación puede capturar.",
+                    "Exception no se puede capturar con bloques try-catch, mientras que Error sí.",
+                    "Error es una subclase de Exception.",
+                    "Error solo ocurre en tiempo de compilación y Exception en tiempo de ejecución."
+                ],
+                correct: 0,
+                feedback: "Los objetos de tipo Error representan condiciones de fallo graves de la JVM (ej. OutOfMemoryError) difíciles de recuperar, mientras que Exception describe condiciones que una aplicación normal puede manejar."
+            },
+            {
+                q: "¿Para qué sirve el bloque 'try' en el manejo de excepciones?",
+                options: [
+                    "Para delimitar un conjunto de sentencias que podrían generar una excepción durante su ejecución.",
+                    "Para capturar y tratar directamente la excepción producida.",
+                    "Para forzar el lanzamiento inmediato de una excepción.",
+                    "Para ejecutar código de limpieza obligatoria al finalizar el programa."
+                ],
+                correct: 0,
+                feedback: "El bloque 'try' encierra el código propenso a lanzar una excepción para ser monitoreado durante la ejecución."
+            },
+            {
+                q: "¿Para qué sirve el bloque 'catch'?",
+                options: [
+                    "Para definir el código que manejará la excepción específica lanzada dentro del bloque try asociado.",
+                    "Para evaluar la condición lógica de iteración de un bucle.",
+                    "Para declarar variables globales accesibles desde cualquier hilo.",
+                    "Para ejecutar instrucciones únicamente si no ocurre ningún error en el programa."
+                ],
+                correct: 0,
+                feedback: "El bloque 'catch' especifica el manejador y el código de respuesta cuando se captura un tipo particular de excepción."
+            },
+            {
+                q: "¿Qué función cumple el bloque 'finally'?",
+                options: [
+                    "Garantiza la ejecución de su código independientemente de si se produjo o no una excepción en el bloque try.",
+                    "Se ejecuta únicamente cuando ocurre un error crítico que detiene la máquina virtual.",
+                    "Es un bloque opcional que sustituye al bloque catch cuando hay múltiples excepciones.",
+                    "Finaliza de manera forzada la ejecución de todos los subprocesos de la GUI."
+                ],
+                correct: 0,
+                feedback: "El bloque 'finally' se ejecuta siempre después de try y catch, siendo ideal para liberar recursos (como cerrar archivos o conexiones)."
+            },
+            {
+                q: "¿Qué causa la excepción no verificada 'NumberFormatException'?",
+                options: [
+                    "Intentar convertir una cadena de texto (String) con formato no numérico a un tipo numérico (ej. Integer.parseInt).",
+                    "Dividir un número entero exactamente entre cero.",
+                    "Acceder a un índice fuera de los límites permitidos en un arreglo.",
+                    "Tratar de invocar un método desde una referencia con valor null."
+                ],
+                correct: 0,
+                feedback: "NumberFormatException ocurre cuando se intenta parsear un String hacia un número (ej. Integer.parseInt(\"abc\")) y la cadena no contiene un formato numérico válido."
+            },
+            {
+                q: "¿Por qué es crucial manejar excepciones en una aplicación gráfica (Swing)?",
+                options: [
+                    "Para evitar que excepciones no controladas congelen o detengan la interfaz del usuario inesperadamente.",
+                    "Porque Swing exige por sintaxis que todos los botones usen bloques try-catch.",
+                    "Para aumentar automáticamente la velocidad de renderizado de las ventanas.",
+                    "Porque evita que la memoria RAM se llene al dibujar componentes visuales."
+                ],
+                correct: 0,
+                feedback: "Manejar excepciones en la GUI garantiza que la aplicación siga respondiendo y pueda notificar al usuario sobre errores sin colapsar la interfaz."
+            },
+
+            // Eventos
+            {
+                q: "¿Qué es un evento en una interfaz gráfica de usuario (GUI)?",
+                options: [
+                    "Una acción o interacción del usuario o del sistema que desencadena una notificación a la aplicación.",
+                    "Una variable local definida dentro de una clase abstracta de interfaz.",
+                    "El proceso de renderizar componentes gráficos en la pantalla.",
+                    "Un método estático que destruye componentes que no están en uso."
+                ],
+                correct: 0,
+                feedback: "Un evento representa cualquier interacción del usuario (clic, tecleo) o cambio del sistema al cual la aplicación puede responder."
+            },
+            {
+                q: "¿Qué ocurre conceptualmente en Java Swing cuando el usuario presiona un JButton?",
+                options: [
+                    "Se crea un ActionEvent y se notifica a los listeners (ActionListener) registrados en el botón.",
+                    "El botón se destruye y se vuelve a dibujar en el panel principal.",
+                    "Se lanza una excepción obligatoria de tipo ComponentException.",
+                    "Se ejecuta automáticamente el método repaint() de la ventana principal."
+                ],
+                correct: 0,
+                feedback: "Al hacer clic en un JButton, este genera un objeto ActionEvent y llama al método actionPerformed() de todos los ActionListener suscritos."
+            },
+            {
+                q: "¿Qué es ActionListener en Java Swing?",
+                options: [
+                    "Una interfaz que debe implementarse para recibir y procesar eventos de acción (como clics de botón).",
+                    "Una clase concreta que dibuja botones tridimensionales en la pantalla.",
+                    "Un componente contenedor que agrupa campos de texto y etiquetas.",
+                    "Un administrador de esquemas para ordenar componentes en filas."
+                ],
+                correct: 0,
+                feedback: "ActionListener es una interfaz con el método actionPerformed(), usada para escuchar eventos de acción como clics de un botón."
+            },
+            {
+                q: "¿Qué función cumple el método 'public void actionPerformed(ActionEvent e)'?",
+                options: [
+                    "Contiene la lógica de código que se ejecutará en respuesta al evento producido.",
+                    "Dibuja los bordes gráficos del botón que recibió la acción.",
+                    "Inicializa los componentes de la interfaz de usuario en el constructor.",
+                    "Captura las excepciones de tipo NullPointerException durante el renderizado."
+                ],
+                correct: 0,
+                feedback: "El método actionPerformed es donde se define la respuesta/lógica de negocio a ejecutar cuando el evento es activado."
+            },
+            {
+                q: "¿Cuál de los siguientes grupos representa únicamente acciones que generan eventos en Swing?",
+                options: [
+                    "Clic en un botón, escribir en un JTextField, seleccionar un JCheckBox, mover el mouse, cambiar elemento en JComboBox.",
+                    "Compilar un archivo .java, instanciar un objeto, cerrar el IDE, guardar cambios, usar System.out.",
+                    "Usar un bucle for, declarar una variable, usar try-catch, heredar una clase, implementar interfaz.",
+                    "Importar java.util, pausar la ejecución de un hilo, hacer garbage collection, usar super(), crear paquete."
+                ],
+                correct: 0,
+                feedback: "Las interacciones directas con componentes de GUI (clics, teclado, selección) son generadoras de eventos estándar."
+            },
+
+            // Componentes Gráficos
+            {
+                q: "¿Cuál es la función principal de la clase JFrame en Swing?",
+                options: [
+                    "Representar una ventana principal con barra de título, borde y botones de maximizar/cerrar.",
+                    "Servir como una etiqueta simple para desplegar únicamente texto estático.",
+                    "Gestionar eventos de entrada de teclado a nivel del sistema operativo.",
+                    "Crear cuadros de diálogo emergentes predefinidos para alertas."
+                ],
+                correct: 0,
+                feedback: "JFrame es el contenedor de nivel superior habitual que sirve como la ventana principal de la aplicación."
+            },
+            {
+                q: "¿Para qué se utiliza comúnmente el componente JPanel?",
+                options: [
+                    "Como un contenedor secundario genérico para organizar y agrupar otros componentes gráficos.",
+                    "Para mostrar tablas complejas de base de datos con scroll automático.",
+                    "Como un botón con soporte nativo de animaciones tridimensionales.",
+                    "Para ingresar contraseñas ocultando los caracteres con asterisco."
+                ],
+                correct: 0,
+                feedback: "JPanel es un contenedor liviano intermedio clave para estructurar la distribución de componentes dentro de un JFrame."
+            },
+            {
+                q: "¿Cuál es el propósito del componente JLabel?",
+                options: [
+                    "Mostrar texto o imágenes no editables en la interfaz gráfica.",
+                    "Permitir la entrada de texto multilínea por parte del usuario.",
+                    "Desplegar una lista desplegable de opciones ejecutables.",
+                    "Capturar credenciales de acceso de forma cifrada."
+                ],
+                correct: 0,
+                feedback: "JLabel se utiliza para mostrar áreas con texto, imágenes o ambos que el usuario no puede editar directamente."
+            },
+            {
+                q: "¿Qué caracteriza al componente JButton?",
+                options: [
+                    "Un botón de comando ejecutable sobre el cual el usuario hace clic para realizar una acción.",
+                    "Un campo exclusivo para ingresar datos numéricos de coma flotante.",
+                    "Un contenedor con soporte para dividir la pantalla en paneles.",
+                    "Una casilla de verificación de selección múltiple obligatoria."
+                ],
+                correct: 0,
+                feedback: "JButton es el componente estándar de botón interactivo al que se le asocia un ActionListener para responder a clics."
+            },
+            {
+                q: "¿Cuál es la función principal de JTextField?",
+                options: [
+                    "Permitir la entrada y edición de una sola línea de texto sin formato.",
+                    "Mostrar grandes volúmenes de texto formateado en varias páginas.",
+                    "Ocultar automáticamente los caracteres ingresados por motivos de seguridad.",
+                    "Presentar una tabla con filas y columnas de datos editables."
+                ],
+                correct: 0,
+                feedback: "JTextField permite al usuario ingresar y editar un texto corto compuesto por una sola línea."
+            },
+            {
+                q: "¿En qué se diferencia JPasswordField de JTextField?",
+                options: [
+                    "JPasswordField oculta visualmente el texto ingresado mostrando caracteres como puntos o asteriscos.",
+                    "JPasswordField no permite el uso de teclas del teclado numérico.",
+                    "JTextField encripta los datos internamente y JPasswordField no.",
+                    "JPasswordField solo acepta números y prohíbe letras o símbolos."
+                ],
+                correct: 0,
+                feedback: "JPasswordField está diseñado para datos confidenciales, enmascarando visualmente las pulsaciones de teclas."
+            },
+            {
+                q: "¿Cuándo es adecuado utilizar un JTextArea en lugar de un JTextField?",
+                options: [
+                    "Cuando se requiere que el usuario ingrese o visualice texto multilínea.",
+                    "Cuando se necesita una casilla para marcar opciones de Verdadero/Falso.",
+                    "Cuando los datos ingresados deben formatearse como tabla de base de datos.",
+                    "Cuando el texto ingresado deba mantenerse oculto como clave."
+                ],
+                correct: 0,
+                feedback: "JTextArea está diseñado para el manejo de múltiples líneas de texto en un área configurable."
+            },
+            {
+                q: "¿Cuál es la función de un JCheckBox?",
+                options: [
+                    "Permitir al usuario activar o desactivar una opción con estados booleans (activado/desactivado).",
+                    "Forzar al usuario a elegir exactamente una opción dentro de un grupo mutuamente excluyente.",
+                    "Mostrar una lista desplegable con desplazamiento vertical obligatorio.",
+                    "Crear un área para dibujar figuras geométricas dinámicas."
+                ],
+                correct: 0,
+                feedback: "JCheckBox es una casilla de verificación que representa un estado de activación/desactivación (true/false)."
+            },
+            {
+                q: "¿Cómo se logra que un conjunto de JRadioButton sea mutuamente excluyente?",
+                options: [
+                    "Agrupando los objetos JRadioButton dentro de una instancia de ButtonGroup.",
+                    "Colocando todos los JRadioButton dentro de un JPanel con FlowLayout.",
+                    "Definiendo la propiedad setExclusive(true) en cada JRadioButton.",
+                    "Asociando el mismo ActionListener a todos los botones del conjunto."
+                ],
+                correct: 0,
+                feedback: "Se deben agregar las opciones JRadioButton a un elemento ButtonGroup para garantizar que solo una casilla se seleccione a la vez."
+            },
+            {
+                q: "¿Qué componente se utiliza para presentar una lista desplegable de la cual el usuario puede seleccionar un elemento?",
+                options: [
+                    "JComboBox",
+                    "JTable",
+                    "JTextArea",
+                    "JOptionPane"
+                ],
+                correct: 0,
+                feedback: "JComboBox combina un campo de texto con una lista desplegable emergente para elegir un elemento de una lista."
+            },
+            {
+                q: "¿Qué componente de Swing es el adecuado para visualizar datos organizados en filas y columnas?",
+                options: [
+                    "JTable",
+                    "JList",
+                    "JPanel",
+                    "JTabbedPane"
+                ],
+                correct: 0,
+                feedback: "JTable es el componente bidimensional utilizado para mostrar y editar datos organizados en filas y columnas."
+            },
+            {
+                q: "¿Para qué sirve la clase JOptionPane?",
+                options: [
+                    "Para facilitar la creación de cuadros de diálogo estándar emergentes para mensajes, confirmaciones e ingresos.",
+                    "Para diseñar paneles con pestañas superiores intercambiables.",
+                    "Para gestionar barras de herramientas flotantes sobre la interfaz.",
+                    "Para crear menús desplegables principales en la ventana."
+                ],
+                correct: 0,
+                feedback: "JOptionPane proporciona métodos estáticos para mostrar rápidamente cuadros de diálogo estándar (showMessageDialog, showConfirmDialog, etc.)."
+            },
+
+            // Contenedores y Layout Managers
+            {
+                q: "¿Qué es un 'contenedor' (Container) en el contexto de Java Swing?",
+                options: [
+                    "Un componente especial que puede hospedar y organizar otros componentes dentro de su área visual.",
+                    "Una clase encargada exclusivamente de la persistencia de datos en disco.",
+                    "Un hilo secundario que ejecuta tareas pesadas en segundo plano.",
+                    "Un archivo JAR que contiene las librerías del proyecto ejecutable."
+                ],
+                correct: 0,
+                feedback: "Un contenedor es una subclase dejava.awt.Container capaz de alojar otros componentes gráficos en su interior."
+            },
+            {
+                q: "¿Qué es un Layout Manager (Administrador de Diseño)?",
+                options: [
+                    "Un objeto que calcula e impone automáticamente el tamaño y la posición de los componentes dentro de un contenedor.",
+                    "Un controlador que gestiona la conexión con bases de datos MySQL.",
+                    "Una herramienta del IDE para compilar código Java a bytecode.",
+                    "Un listener especializado en eventos de red y sockets."
+                ],
+                correct: 0,
+                feedback: "Un Layout Manager se encarga de determinar automáticamente la disposición, ubicación y redimensionamiento de componentes dentro de un contenedor."
+            },
+            {
+                q: "¿Cómo organiza los componentes el administrador de diseño FlowLayout?",
+                options: [
+                    "En una fila horizontal consecutiva, pasando a la siguiente línea si no hay espacio suficiente.",
+                    "En cinco regiones fijas: North, South, East, West y Center.",
+                    "En una cuadrícula estricta de filas y columnas de dimensiones iguales.",
+                    "Apilándolos directamente unos sobre otros en capas tridimensionales (eje Z)."
+                ],
+                correct: 0,
+                feedback: "FlowLayout ubica los componentes consecutivamente de izquierda a derecha en una fila, bajando a la siguiente si excede el ancho."
+            },
+            {
+                q: "¿Cuáles son las cinco regiones geográficas en las que BorderLayout distribuye un contenedor?",
+                options: [
+                    "NORTH, SOUTH, EAST, WEST y CENTER.",
+                    "TOP, BOTTOM, LEFT, RIGHT y MIDDLE.",
+                    "UP, DOWN, LEFT, RIGHT y INSIDE.",
+                    "HEADER, FOOTER, SIDEBAR, BODY y NAVIGATION."
+                ],
+                correct: 0,
+                feedback: "BorderLayout divide el espacio en 5 zonas fijas: NORTH, SOUTH, EAST, WEST y CENTER (que ocupa el espacio restante)."
+            },
+            {
+                q: "¿Qué comportamiento caracteriza a GridLayout?",
+                options: [
+                    "Divide el contenedor en una cuadrícula de celdas idénticas donde todos los componentes tienen el mismo tamaño.",
+                    "Alinea los componentes en una sola columna vertical estricta e inflexible.",
+                    "Asigna posiciones usando coordenadas absolutas (X, Y) definidas manualmente.",
+                    "Permite que un componente ocupe múltiples filas y columnas dinámicamente."
+                ],
+                correct: 0,
+                feedback: "GridLayout coloca los componentes en una rejilla de celdas iguales en ancho y alto."
+            },
+            {
+                q: "¿Qué particularidad distingue a BoxLayout respecto a otros administradores sencillos?",
+                options: [
+                    "Permite organizar los componentes únicamente a lo largo de un solo eje: horizontal (X) o vertical (Y).",
+                    "Organiza elementos exclusivamente en diagonal en la ventana.",
+                    "Obliga a que todos los componentes sean botones de tipo JButton.",
+                    "Solo puede utilizarse en contenedores de nivel superior como JFrame."
+                ],
+                correct: 0,
+                feedback: "BoxLayout organiza los componentes en una sola fila (X) o en una sola columna (Y)."
+            },
+            {
+                q: "¿Cuál es una ventaja principal del sofisticado GridBagLayout?",
+                options: [
+                    "Permite posicionar componentes en celdas de tamaño variable y extenderlos por múltiples filas o columnas usando GridBagConstraints.",
+                    "Es el administrador más simple de usar y no requiere ningún objeto de configuración adicional.",
+                    "Organiza los elementos automáticamente en forma circular en el centro de la pantalla.",
+                    "No requiere importar ninguna clase del paquete java.awt."
+                ],
+                correct: 0,
+                feedback: "GridBagLayout es uno de los administradores más flexibles e idóneo para layouts complejos, usando GridBagConstraints para personalizar el comportamiento de cada celda."
+            },
+
+            // Análisis de Código y Casos Prácticos
+            {
+                q: "Dado el siguiente fragmento de código, ¿qué ocurre al ejecutarlo?\nString s = \"123a\";\nint n = Integer.parseInt(s);",
+                options: [
+                    "Se lanza una excepción NumberFormatException en tiempo de ejecución.",
+                    "La variable n toma el valor numérico 123.",
+                    "El código no compila por incompatibilidad de tipos.",
+                    "La variable n toma el valor 0 de forma predeterminada."
+                ],
+                correct: 0,
+                code: "String s = \"123a\";\nint n = Integer.parseInt(s);",
+                feedback: "Como la cadena contiene el carácter 'a', Integer.parseInt no puede convertirla a entero y lanza NumberFormatException."
+            },
+            {
+                q: "Analice el siguiente código:\n\nJButton btn = new JButton(\"Aceptar\");\nbtn.addActionListener(e -> System.out.println(\"OK\"));\n\n¿Qué tipo de implementación se está utilizando para el ActionListener?",
+                options: [
+                    "Una expresión Lambda para implementar la interfaz funcional ActionListener.",
+                    "Una subclase concreta nombrada definida en un archivo externo.",
+                    "Una llamada a un método estático del sistema de Swing.",
+                    "Un error de sintaxis que impedirá la compilación."
+                ],
+                correct: 0,
+                code: "JButton btn = new JButton(\"Aceptar\");\nbtn.addActionListener(e -> System.out.println(\"OK\"));",
+                feedback: "ActionListener es una interfaz funcional con un solo método (actionPerformed), por lo que se puede implementar concisamente con una expresión Lambda en Java 8+."
+            },
+            {
+                q: "Dado el siguiente bloque de código:\n\ntry {\n    int a = 10 / 0;\n} catch (ArithmeticException e) {\n    System.out.print(\"A \");\n} finally {\n    System.out.print(\"B \");\n}\n\n¿Cuál es la salida por consola?",
+                options: [
+                    "A B",
+                    "A",
+                    "B",
+                    "Se interrumpe la ejecución con un error y no imprime nada."
+                ],
+                correct: 0,
+                code: "try {\n    int a = 10 / 0;\n} catch (ArithmeticException e) {\n    System.out.print(\"A \");\n} finally {\n    System.out.print(\"B \");\n}",
+                feedback: "Se divide por cero, lanzando ArithmeticException. Se captura en catch imprimiendo 'A ', y luego siempre pasa por finally imprimiendo 'B '."
+            },
+            {
+                q: "Analice el siguiente fragmento:\n\nJFrame frame = new JFrame();\nframe.setLayout(new BorderLayout());\nframe.add(new JButton(\"B1\"));\n\nSi no se especifica región en BorderLayout, ¿en qué zona se agrega el botón por defecto?",
+                options: [
+                    "CENTER (Centro)",
+                    "NORTH (Norte)",
+                    "SOUTH (Sur)",
+                    "WEST (Oeste)"
+                ],
+                correct: 0,
+                code: "JFrame frame = new JFrame();\nframe.setLayout(new BorderLayout());\nframe.add(new JButton(\"B1\"));",
+                feedback: "En el método add() de un contenedor con BorderLayout, si no se indica la posición explícitamente, por defecto se añade a BorderLayout.CENTER."
+            },
+            {
+                q: "Analice el código:\n\nJTextField txt = new JTextField(\"Hola\");\nString res = txt.getText();\n\n¿Cuál es el valor almacenado en la variable 'res'?",
+                options: [
+                    "La cadena de texto \"Hola\".",
+                    "Un valor numérico entero correspondiente al código ASCII de 'H'.",
+                    "null, porque el usuario no presionó Enter.",
+                    "Un objeto de tipo JTextField de Swing."
+                ],
+                correct: 0,
+                code: "JTextField txt = new JTextField(\"Hola\");\nString res = txt.getText();",
+                feedback: "El método getText() de JTextField retorna el texto contenido dentro del campo, en este caso \"Hola\"."
+            },
+            {
+                q: "Analice la instrucción:\n\nJOptionPane.showMessageDialog(null, \"Operación Exitosa\", \"Información\", JOptionPane.INFORMATION_MESSAGE);\n\n¿Cuál es el propósito de esta línea?",
+                options: [
+                    "Mostrar un cuadro de diálogo informativo modal con el mensaje 'Operación Exitosa'.",
+                    "Lanzar una excepción de tipo JOptionPaneException.",
+                    "Crear un botón flotante transparente con la etiqueta 'Información'.",
+                    "Redireccionar la consola del sistema hacia una ventana."
+                ],
+                correct: 0,
+                code: "JOptionPane.showMessageDialog(null, \"Operación Exitosa\", \"Información\", JOptionPane.INFORMATION_MESSAGE);",
+                feedback: "showMessageDialog despliega una ventana emergente para dar un aviso o mensaje al usuario de manera rápida y sencilla."
+            },
+            {
+                q: "¿Qué sucede al ejecutar el código:\n\nJCheckBox chk = new JCheckBox(\"Acepto\");\nboolean state = chk.isSelected();\n\nsin que el usuario interactúe con el componente?",
+                options: [
+                    "state valdrá false, pues por defecto un JCheckBox recién instanciado no está marcado.",
+                    "state valdrá true automáticamente.",
+                    "Ocurre una excepción de tipo NullPointerException.",
+                    "El compilador marca error de sintaxis por no inicializar el valor."
+                ],
+                correct: 0,
+                code: "JCheckBox chk = new JCheckBox(\"Acepto\");\nboolean state = chk.isSelected();",
+                feedback: "El estado predeterminado de selección de un JCheckBox al instanciarse es falso (false/desmarcado)."
+            },
+            {
+                q: "Dado el siguiente bloque de código:\n\nint x = 5;\ntry {\n    x += 5;\n} catch (Exception e) {\n    x += 10;\n} finally {\n    x += 2;\n}\n\n¿Cuál es el valor final de la variable 'x'?",
+                options: [
+                    "12",
+                    "10",
+                    "22",
+                    "17"
+                ],
+                correct: 0,
+                code: "int x = 5;\ntry {\n    x += 5;\n} catch (Exception e) {\n    x += 10;\n} finally {\n    x += 2;\n}",
+                feedback: "x empieza en 5. En el try se le suman 5 (x=10). No ocurre excepción (el catch no se ejecuta). En finally se le suman 2 (x=12)."
+            },
+            {
+                q: "Analice el siguiente código para detectar eventos de mouse:\n\npanel.addMouseListener(new MouseAdapter() {\n    public void mouseClicked(MouseEvent e) {\n        System.out.println(\"Clic en X: \" + e.getX());\n    }\n});\n\n¿Por qué es ventajoso usar MouseAdapter en lugar de implementar directamente MouseListener?",
+                options: [
+                    "Porque MouseAdapter implementa los métodos de la interfaz con cuerpos vacíos, permitiendo sobrescribir solo mouseClicked.",
+                    "Porque MouseAdapter acelera el rendimiento gráfico de la GPU.",
+                    "Porque MouseListener no funciona en contenedores como JPanel.",
+                    "Porque MouseAdapter convierte los eventos de mouse en excepciones controladas."
+                ],
+                correct: 0,
+                code: "panel.addMouseListener(new MouseAdapter() {\n    public void mouseClicked(MouseEvent e) {\n        System.out.println(\"Clic en X: \" + e.getX());\n    }\n});",
+                feedback: "MouseAdapter es una clase adaptadora que proporciona implementaciones vacías de todos los métodos de MouseListener, evitando definir métodos sin usar."
+            }
+        ];
+
+        // VARIABLES GLOBALES DEL EXAMEN
+        let selectedQuestions = [];
+        let currentQuestionIndex = 0;
+        let userAnswers = []; // guardará { questionObj, selectedOptionIndex }
+        let studentName = "";
+        let studentEmail = "";
+        let totalScore = 0;
+
+        // INICIAR PRUEBA (FORMULARIO)
+        function startExam(e) {
+            e.preventDefault();
+            studentName = document.getElementById('user-name').value.trim();
+            studentEmail = document.getElementById('user-email').value.trim();
+
+            if (!studentName || !studentEmail) return;
+
+            // Solicitar modo pantalla completa
+            requestFullScreen();
+
+            // Configurar 25 preguntas al azar de las 40 disponibles
+            selectedQuestions = [...questionBank].sort(() => Math.random() - 0.5).slice(0, 25);
+            currentQuestionIndex = 0;
+            userAnswers = [];
+
+            // Actualizar interfaz
+            document.getElementById('quiz-student-name').innerText = studentName;
+            document.getElementById('quiz-student-email').innerText = studentEmail;
+            document.getElementById('screen-register').classList.add('hidden');
+            document.getElementById('screen-quiz').classList.remove('hidden');
+
+            // Registrar eventos de seguridad
+            setupSecurityListeners();
+
+            // Cargar primera pregunta
+            loadQuestion();
+        }
+
+        // SOLICITAR PANTALLA COMPLETA
+        function requestFullScreen() {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen().catch(err => console.log("Error al activar Fullscreen:", err));
+            } else if (docEl.mozRequestFullScreen) {
+                docEl.mozRequestFullScreen();
+            } else if (docEl.webkitRequestFullscreen) {
+                docEl.webkitRequestFullscreen();
+            } else if (docEl.msRequestFullscreen) {
+                docEl.msRequestFullscreen();
+            }
+        }
+
+        // CARGAR PREGUNTA ACTUAL
+        function loadQuestion() {
+            const q = selectedQuestions[currentQuestionIndex];
+            
+            document.getElementById('quiz-progress').innerText = `Pregunta ${currentQuestionIndex + 1} de 25`;
+            document.getElementById('question-text').innerText = `${currentQuestionIndex + 1}. ${q.q}`;
+
+            const codeBlock = document.getElementById('code-block');
+            if (q.code) {
+                codeBlock.innerText = q.code;
+                codeBlock.classList.remove('hidden');
+            } else {
+                codeBlock.classList.add('hidden');
+            }
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            // Mezclar visualmente u ordenar las opciones sin perder el índice original
+            const indexedOptions = q.options.map((opt, i) => ({ text: opt, originalIndex: i }));
+            
+            // Renderizar opciones en la pantalla
+            indexedOptions.forEach((item) => {
+                const btn = document.createElement('label');
+                btn.className = "flex items-start p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200 text-sm";
+                btn.innerHTML = `
+                    <input type="radio" name="option" value="${item.originalIndex}" class="mt-1 mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500">
+                    <span class="text-gray-700">${item.text}</span>
+                `;
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        // AVANZAR A LA SIGUIENTE PREGUNTA
+        function nextQuestion() {
+            const selectedRadio = document.querySelector('input[name="option"]:checked');
+            if (!selectedRadio) {
+                alert("Por favor, seleccione una opción para continuar.");
+                return;
+            }
+
+            const selectedIndex = parseInt(selectedRadio.value);
+            userAnswers.push({
+                question: selectedQuestions[currentQuestionIndex],
+                selectedIndex: selectedIndex
+            });
+
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < 25) {
+                loadQuestion();
+            } else {
+                finishQuizAndEvaluate();
+            }
+        }
+
+        // EVALUAR Y MOSTRAR RESULTADOS
+        function finishQuizAndEvaluate() {
+            totalScore = 0;
+            const feedbackList = document.getElementById('feedback-list');
+            feedbackList.innerHTML = '';
+
+            let incorrectCount = 0;
+
+            userAnswers.forEach((ans, idx) => {
+                const isCorrect = ans.selectedIndex === ans.question.correct;
+                if (isCorrect) {
+                    totalScore++;
+                } else {
+                    incorrectCount++;
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = "p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg text-sm";
+                    
+                    const userSelectedText = ans.question.options[ans.selectedIndex];
+                    const correctText = ans.question.options[ans.question.correct];
+
+                    itemDiv.innerHTML = `
+                        <p class="font-bold text-gray-800 mb-1">Pregunta ${idx + 1}: ${ans.question.q}</p>
+                        <p class="text-red-700 mb-1"><span class="font-semibold">Tu respuesta:</span> ${userSelectedText}</p>
+                        <p class="text-emerald-700 mb-1"><span class="font-semibold">Respuesta correcta:</span> ${correctText}</p>
+                        <p class="text-gray-600 text-xs italic bg-white p-2 rounded border mt-2"><span class="font-semibold">Explicación:</span> ${ans.question.feedback}</p>
+                    `;
+                    feedbackList.appendChild(itemDiv);
+                }
+            });
+
+            if (incorrectCount === 0) {
+                feedbackList.innerHTML = '<div class="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm text-center">¡Excelente! Respondiste todas las preguntas correctamente.</div>';
+            }
+
+            document.getElementById('res-student-name').innerText = studentName;
+            document.getElementById('res-score').innerText = `${totalScore} / 25`;
+
+            document.getElementById('screen-quiz').classList.add('hidden');
+            document.getElementById('screen-results').classList.remove('hidden');
+        }
+
+        // GENERAR Y DESCARGAR PDF CON DISEÑO ELEGANTE Y SIMPLE
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            // Colores
+            const primaryColor = [30, 58, 138]; // Azul marino
+            const darkText = [31, 41, 55]; // Gris oscuro
+            const mutedText = [107, 114, 128]; // Gris medio
+
+            // Borde elegante
+            doc.setLineWidth(1);
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(10, 10, 190, 277);
+
+            // Borde interno decorativo
+            doc.setLineWidth(0.5);
+            doc.setDrawColor(220, 220, 220);
+            doc.rect(13, 13, 184, 271);
+
+            // Encabezado
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(22);
+            doc.setTextColor(...primaryColor);
+            doc.text("CONSTANCIA DE EVALUACIÓN", 105, 45, { align: "center" });
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(12);
+            doc.setTextColor(...mutedText);
+            doc.text("Fundamentos de Java & Java Swing", 105, 53, { align: "center" });
+
+            // Línea divisora
+            doc.setLineWidth(0.8);
+            doc.setDrawColor(...primaryColor);
+            doc.line(40, 60, 170, 60);
+
+            // Cuerpo del certificado
+            doc.setFontSize(11);
+            doc.setTextColor(...darkText);
+            doc.text("Por medio del presente documento se hace constar que:", 105, 80, { align: "center" });
+
+            // Nombre del Estudiante
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.setTextColor(...primaryColor);
+            doc.text(studentName.toUpperCase(), 105, 95, { align: "center" });
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(11);
+            doc.setTextColor(...darkText);
+            doc.text(`Correo Electrónico: ${studentEmail}`, 105, 103, { align: "center" });
+
+            doc.text("Ha completado la prueba de conocimientos con los siguientes resultados:", 105, 120, { align: "center" });
+
+            // Cuadro de Nota
+            doc.setFillColor(243, 244, 246);
+            doc.roundedRect(65, 135, 80, 35, 3, 3, 'F');
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(...mutedText);
+            doc.text("NOTA OBTENIDA", 105, 145, { align: "center" });
+
+            doc.setFontSize(24);
+            doc.setTextColor(...primaryColor);
+            doc.text(`${totalScore} / 25`, 105, 160, { align: "center" });
+
+            // Fecha
+            const fecha = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(10);
+            doc.setTextColor(...mutedText);
+            doc.text(`Fecha de emisión: ${fecha}`, 105, 190, { align: "center" });
+
+            // Pie de página
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.text("Documento generado automáticamente por el Sistema de Evaluación de Java Swing.", 105, 260, { align: "center" });
+
+            // Descargar el archivo
+            doc.save(`Resultado_Evaluacion_${studentName.replace(/\s+/g, '_')}.pdf`);
+        }
+
+        // REINICIAR Y FINALIZAR
+        function finishExam() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+            // Restaurar estado inicial
+            document.getElementById('screen-results').classList.add('hidden');
+            document.getElementById('screen-register').classList.remove('hidden');
+            document.getElementById('form-register').reset();
+        }
+
+        // SEGURIDAD: PREVENIR CAMBIO DE VENTANA / TECLAS DE CAPTURA
+        function setupSecurityListeners() {
+            // Detectar cuando el usuario sale de la pestaña o pierde el foco
+            window.addEventListener('blur', () => {
+                if (!document.getElementById('screen-quiz').classList.contains('hidden')) {
+                    alert("¡ADVERTENCIA DE SEGURIDAD!\nHa salido o cambiado de ventana. Manténgase en la prueba.");
+                }
+            });
+
+            // Bloquear atajos comunes de teclado (PrintScreen, F12, Ctrl+Shift+I, etc.)
+            window.addEventListener('keydown', (e) => {
+                if (e.key === "PrintScreen" || e.keyCode === 44) {
+                    alert("Las capturas de pantalla están deshabilitadas durante la prueba.");
+                    e.preventDefault();
+                }
+                if (e.ctrlKey && (e.key === 'p' || e.key === 's' || e.key === 'u')) {
+                    e.preventDefault();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
